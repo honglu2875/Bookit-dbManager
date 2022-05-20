@@ -1,0 +1,64 @@
+server:
+  port: 8080
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect:
+          org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  thymeleaf:
+    cache: false
+
+  # Spring security is optional and only for testing purpose in this app, because we do not directly handle the connection:
+  #     [user] --- (OAuth2) --- [Google].
+  # Instead, we implement a customized Basic Authorization between the scheduling server and us:
+  #     [scheduling server] --- (Basic) --- [this].
+  # The frontend server who handles the user's Google authentication is not our concern.
+  # TODO: Make the server authorization compatible with OAuth2 Client Credentials Grant.
+
+  # On another note, this server does save Google calendar API refresh token. It will use the refresh token to update the busy timeslots.
+  #     [this] --- (OAuth2) --- [Google Calendar API]
+  # To test the API communication, Spring security might be invoked. Thus for development purpose, finishing the config below is necessary.
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            clientId: <your client id>
+            clientSecret: <your client secret>
+            scope:
+              - email
+              - profile
+              - https://www.googleapis.com/auth/calendar.readonly
+              - https://www.googleapis.com/auth/calendar.events
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth?prompt=consent&access_type=offline
+
+  datasource:
+    platform: postgres
+    url: jdbc:postgresql://localhost:5432/data
+    username: foo
+    password: bar
+    driverClassName: org.postgresql.Driver
+
+logging:
+  #file: /logs/application-debug.log
+  level:
+    root: INFO
+    #org.springframework.web: DEBUG
+    #org.hibernate: DEBUG
+  output:
+    ansi:
+      enabled: DETECT
+
+api:
+  provider:
+    google:
+      key: <your google api key>
