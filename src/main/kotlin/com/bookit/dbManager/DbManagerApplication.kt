@@ -20,6 +20,7 @@ class DbManagerApplication @Autowired constructor(val apiAuthRepository: ApiAuth
 	fun initializeBackendToken(){
 		val clientAuth = ApiToken()
 		val encoder = Base64.getEncoder()
+		apiAuthRepository.deleteAll()
 		apiAuthRepository.save(clientAuth)
 		println("""
 			Backend server token:

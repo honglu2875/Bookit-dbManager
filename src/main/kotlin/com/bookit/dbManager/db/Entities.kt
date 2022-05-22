@@ -89,9 +89,9 @@ class BusyTime (
 @Entity
 class BookedSlot (
     @ManyToOne val host: BackendUser,
-    @Column(columnDefinition = "timestamp with time zone")
+    @Column(columnDefinition = "timestamp with timezone")
     val startTime: OffsetDateTime,
-    @Column(columnDefinition = "timestamp with time zone")
+    @Column(columnDefinition = "timestamp with timezone")
     val endTime: OffsetDateTime,
     @ElementCollection @CollectionTable(name="attendee")
     val attendee: List<Attendee> = listOf(),

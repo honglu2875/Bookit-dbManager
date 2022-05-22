@@ -4,19 +4,16 @@ import com.bookit.dbManager.db.*
 import com.bookit.dbManager.util.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.core.env.Environment
 import org.springframework.http.HttpStatus
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.core.env.Environment
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.OffsetDateTime
-import java.time.ZonedDateTime
 import javax.annotation.Resource
-import kotlin.math.floor
 import kotlin.math.min
 
 @SpringBootApplication
@@ -101,10 +98,15 @@ class APIController @Autowired constructor(val bookedSlotRepository: BookedSlotR
      * @param body A JSON string.
      */
     @PostMapping("/api/backend/add_schedule_type")
-    fun add_schedule_type(@RequestBody body: AddScheduleType): Any{
+    fun add_schedule_type(@RequestBody body: AddScheduleType): Any {
         val user: BackendUser = getUser(body.email)
+        if (validDayOfWeekEncoding(body.availableDays)) return errorGenerator(
+            "Invalid days encoding.",
+            HttpStatus.BAD_REQUEST,
+            log = log
+        )
         scheduleTypeRepository.save(ScheduleType(body, user))
-        return successGenerator("Ok.", log=log)
+        return successGenerator("Ok.", log = log)
     }
 
     /**
@@ -133,22 +135,31 @@ class APIController @Autowired constructor(val bookedSlotRepository: BookedSlotR
      * @return the original JSON string response from Google Calendar API.
      */
     @PostMapping("/api/backend/add_event")
-    fun add_event(@RequestBody body: AddBookedSlot): Any{
+    fun add_event(@RequestBody body: AddBookedSlot): Any {
         val user: BackendUser = getUser(body.hostEmail)
         ensureEnvExists(env)
 
         val clientId = env!!.getProperty("spring.security.oauth2.client.registration.google.clientId")!!
         val clientSecret = env.getProperty("spring.security.oauth2.client.registration.google.clientSecret")!!
         val apiKey = env.getProperty("api.provider.google.key")!!
-        val accessToken = refreshAccessToken(clientId, clientSecret, user.refreshToken, log=log).getString("access_token")
+        val accessToken =
+            refreshAccessToken(clientId, clientSecret, user.refreshToken, log = log).getString("access_token")
         val bookedSlot = BookedSlot(body, user)
 
         val response = addEvent(accessToken, user.email, apiKey, bookedSlot)
-        if (response.has("status") && response.getString("status")=="confirmed")
+        if (response.has("status") && response.getString("status") == "confirmed")
             bookedSlotRepository.save(bookedSlot)
         return response.toString()
 
     }
+
+    /**
+     * TODO: /api/backend/cancel_event
+     */
+
+    /**
+     * TODO: /api/backend/modify_event
+     */
 
     /**
      * /api/backend/force_sync
@@ -157,7 +168,7 @@ class APIController @Autowired constructor(val bookedSlotRepository: BookedSlotR
      * @param email the backend user's email
      */
     @PostMapping("/api/backend/force_sync")
-    fun force_sync(email: String): Any{
+    fun force_sync(email: String): Any {
         ensureEnvExists(env)
 
         val clientId = env!!.getProperty("spring.security.oauth2.client.registration.google.clientId")
@@ -192,7 +203,7 @@ class APIController @Autowired constructor(val bookedSlotRepository: BookedSlotR
         val user = getUser(email)
         val bookedSlots: List<BookedSlot> = bookedSlotRepository.findAllByHost(user).sortedBy{ it.startTime }
 
-        if (bookedSlots.isEmpty()) return "[]"
+        if (bookedSlots.isEmpty()) return listOf<Nothing>()
         var startIndex = -1
         for (i in bookedSlots.indices) {
             if (bookedSlots[i].startTime.toLocalDate()>=start) {
@@ -204,48 +215,64 @@ class APIController @Autowired constructor(val bookedSlotRepository: BookedSlotR
     }
 
     /**
-     * TODO: /api/get_timeslot
+     * /api/get_timeslot
      *
+     * TODO: More thorough tests!
      * A public api to obtain a list of available slots according to the schedule type and the calendar availability.
      * A timeslot is generated sequentially in each available time period described in ScheduleType.availableTime.
      * It goes as far as 3 months from the starting date for every single request.
      * The api only uses the latest synced data without sending queries to Google Calendar. If the fresh data is required, please call /api/backend/force_sync beforehand.
      * @param email the calendar owner's email address.
-     * @param scheduleTypeToken the string token corresponding to the schedule type.
+     * @param token the string token corresponding to the schedule type.
      * @param limit (optional, default=100) the maximum amount of timeslots to return (max=100).
      * @param startDate (optional, default:today) the starting date (with format YYYY-mm-dd).
      */
     @GetMapping("/api/get_timeslot")
-    fun get_timeslot(email: String, scheduleTypeToken: String, limit: Int?=100, startDate: String?): Any{
-        val startLocalDate = if (startDate==null) LocalDate.now() else LocalDate.parse(startDate)
+    fun get_timeslot(email: String, token: String, limit: Int?, startDate: String?): Any {
+        val pageLimit = limit ?: 100
+        val startLocalDate = if (startDate == null) LocalDate.now() else LocalDate.parse(startDate)
         val user = getUser(email)
-        val scheduleType = getScheduleType(scheduleTypeToken)
+        val scheduleType = getScheduleType(token)
         val bookedSlots: List<BookedSlot> = bookedSlotRepository.findAllByHost(user)
 
+        val zone = scheduleType.zoneId
         val duration = scheduleType.duration
         val timeBetweenSlots = scheduleType.timeBetweenSlots
+        assert(validDayOfWeekEncoding(scheduleType.availableDays))
+        val dayOfWeekAvailability = getDayOfWeekAvailability(scheduleType.availableDays)
 
         // Merge time periods.
         val availableList = mergeIntervals(scheduleType.availableList.map { Pair(it.startMinute, it.endMinute) })
-            .filter { (it.second-it.first)>=duration } // filter out available periods that are shorter than the session duration
-        val busyPeriods = mergeIntervals(user.busyPeriods.map { Pair(it.startTime, it.endTime) })
-        val bookedPeriod = mergeIntervals(bookedSlots.map { Pair(it.startTime, it.endTime) })
+            .filter { (it.second - it.first) >= duration } // filter out available periods that are shorter than the session duration
+        val busyPeriods = mergeIntervals(user.busyPeriods
+            .map { Pair(it.startTime.atZone(zone), it.endTime.atZone(zone)) })
+        val bookedPeriod = mergeIntervals(bookedSlots
+            .map { Pair(it.startTime.atZone(zone), it.endTime.atZone(zone)) })
 
-        // No availability case.
+        // No availability.
         if (availableList.isEmpty()) return listOf<Nothing>()
 
         // Initialize variables.
         var timeslots = arrayListOf<Pair<OffsetDateTime, OffsetDateTime>>()
-        val startDateTime = ZonedDateTime.of(startLocalDate, LocalTime.MIDNIGHT, scheduleType.zoneId)
-            .plusMinutes(availableList[0].first.toLong())
-            .toOffsetDateTime() // Supposedly setting ZoneID instead of a fixed offset takes summer into account
-        var currentStart = startDateTime
-        var currentEnd = startDateTime.plusMinutes(duration.toLong())
-
+        val startDateTime = attachDateToMinute(availableList[0].first, startLocalDate, zone)
         var dateOffset = 0
         var availableListPointer = 0
         var busyPeriodPointer = 0
         var bookedPeriodPointer = 0
+
+        /**
+         * move dateOffset until the day of week is available.
+         */
+        fun getNextAvailableDay() {
+            while (!dayOfWeekAvailability[
+                        startLocalDate.plusDays(dateOffset.toLong()).dayOfWeek]!!
+            ) {
+                dateOffset += 1
+            }
+        }
+        getNextAvailableDay()
+        var currentStart = startDateTime.plusDays(dateOffset.toLong())
+        var currentEnd = currentStart.plusMinutes(duration.toLong())
 
         /**
          * the utility function to update the pointer and return the next [start,end] interval that falls within availability.
@@ -256,42 +283,50 @@ class APIController @Autowired constructor(val bookedSlotRepository: BookedSlotR
          * 3. move pointer by one (update DateOffset if necessary).
          * 4. get the next [start,end] according to the current available time slot.
          */
-        fun getNextSlot(start: OffsetDateTime, end: OffsetDateTime): Pair<OffsetDateTime, OffsetDateTime>{
-            val newStart = end.plusMinutes(timeBetweenSlots.toLong())
-            val newEnd = newStart.plusMinutes(duration.toLong())
+        fun getNextSlot() {
+            var newStart = currentEnd.plusMinutes(timeBetweenSlots.toLong())
+            var newEnd = newStart.plusMinutes(duration.toLong())
 
-            if (newEnd.hour*60+newEnd.minute > availableList[availableListPointer].second) {
-                dateOffset += (availableListPointer+1) / availableList.size
-                availableListPointer = (availableListPointer+1).mod(availableList.size)
-                val newStart = attachDateToMinute(availableList[availableListPointer].first, end.toLocalDate(), scheduleType.zoneId)
-                    .plusDays(if (availableListPointer==0) 1 else 0)
-                val newEnd = newStart.plusMinutes(duration.toLong())
+            if (newEnd.hour * 60 + newEnd.minute > availableList[availableListPointer].second) {
+                dateOffset += (availableListPointer + 1) / availableList.size
+                availableListPointer = (availableListPointer + 1).mod(availableList.size)
+                // If date change happens, increase the dateOffset until the day of week is available.
+                if (availableListPointer == 0) {
+                    getNextAvailableDay()
+                }
+                newStart = attachDateToMinute(
+                    availableList[availableListPointer].first,
+                    startLocalDate.plusDays(dateOffset.toLong()),
+                    zone
+                )
+                newEnd = newStart.plusMinutes(duration.toLong())
             }
-            return Pair(newStart, newEnd)
+            currentStart = newStart
+            currentEnd = newEnd
         }
 
-        while (currentStart<startDateTime.plusMonths(3)) {
-            // Generate slots within the next 3 months
+        // The core code of the timeslot generation begins here.
+
+        while (currentStart < startDateTime.plusMonths(3)) {
             busyPeriodPointer = getNextInterval(busyPeriods, busyPeriodPointer, currentStart, currentEnd)
             bookedPeriodPointer = getNextInterval(bookedPeriod, bookedPeriodPointer, currentStart, currentEnd)
             // Check the intersection with busy and booked periods
-            if ((busyPeriodPointer<busyPeriods.size && busyPeriods[busyPeriodPointer].first>=currentEnd) && // no overlap with busyPeriod
-                (bookedPeriodPointer<bookedPeriod.size && bookedPeriod[bookedPeriodPointer].first>=currentEnd)) // no overlap with bookedPeriod
+            if ((busyPeriodPointer >= busyPeriods.size || !busyPeriods[busyPeriodPointer].first.isBefore(currentEnd)) && // no overlap with busyPeriod
+                (bookedPeriodPointer >= bookedPeriod.size || !bookedPeriod[bookedPeriodPointer].first.isBefore(
+                    currentEnd
+                ))
+            ) // no overlap with bookedPeriod
             {
-                timeslots.add(Pair(currentStart,currentEnd))
-                if (timeslots.size==limit) break
+                timeslots.add(Pair(currentStart, currentEnd))
+                if (timeslots.size >= pageLimit) break
             }
-            // Refresh the currentStart
-            currentStart = currentEnd.plusMinutes(timeBetweenSlots.toLong())
-            currentEnd = currentStart.plusMinutes(duration.toLong())
-            var (currentStart, currentEnd) = getNextSlot(currentStart, currentEnd)
+            getNextSlot()
 
         }
 
         return timeslots
 
     }
-
 
 
     fun getScheduleType(scheduleTypeToken: String): ScheduleType{

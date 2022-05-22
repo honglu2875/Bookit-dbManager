@@ -122,11 +122,40 @@ fun attachDateToMinute(time: Int, date: LocalDate, zone: ZoneId): OffsetDateTime
  * @param end the end value of the compared interval [start,end].
  * @return the next index larger than or equal to pointer such that the end value is greater than start.
  */
-fun <T: Comparable<T>> getNextInterval(list: List<Pair<T,T>>, pointer: Int, start: T, end: T): Int{
+fun <T : Comparable<T>> getNextInterval(list: List<Pair<T, T>>, pointer: Int, start: T, end: T): Int {
     var p = pointer
-    while (p<list.size) {
-        if (list[p].second>end) break
+    while (p < list.size) {
+        if (list[p].second > start) break
         p += 1
     }
     return p
+}
+
+/**
+ * A shorthand for setting an OffsetDateTime object to certain timezone
+ */
+fun OffsetDateTime.atZone(zone: ZoneId) = this.atZoneSameInstant(zone).toOffsetDateTime()
+
+/**
+ * Decode an encoded availableDays integer into a map that shows the availability of each day of week.
+ * @param availableDays the encoded availableDays (see ScheduleType class)
+ */
+fun getDayOfWeekAvailability(availableDays: Int): Map<DayOfWeek, Boolean> {
+    var residue = availableDays
+    var result = mapOf<DayOfWeek, Boolean>()
+    for (i in 0..6) {
+        result = result + Pair(DayOfWeek.SUNDAY.minus(i.toLong()), residue.mod(2) != 0)
+        residue /= 2
+    }
+    return result
+}
+
+/**
+ * A utility function to check if the availableDays encoding is permitted.
+ *
+ * Make sure the interger is less than or equal to "1111111".toInt(2) and nonzero.
+ * @param encoded the encoded integer
+ */
+fun validDayOfWeekEncoding(encoded: Int): Boolean {
+    return (encoded != 0) && (encoded <= "1111111".toInt(2))
 }

@@ -1,10 +1,12 @@
 package com.bookit.dbManager
 
 import com.bookit.dbManager.db.AvailableTime
+import com.bookit.dbManager.util.getDayOfWeekAvailability
 import com.bookit.dbManager.util.mergeAvailableTime
 import com.bookit.dbManager.util.mergeIntervals
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
+import java.time.DayOfWeek
 import java.time.OffsetDateTime
 
 @SpringBootTest
@@ -55,16 +57,37 @@ class utilTests {
             listOf(Pair(60,70), Pair(10,45), Pair(20,30))
         ).map { it.map { AvailableTime(it.first, it.second) } }
         val a = listOf(
-            listOf(Pair(10,20), Pair(30,40), Pair(50,60)),
-            listOf(Pair(10,40), Pair(50,60)),
-            listOf(Pair(10,50), Pair(60,70)),
-            listOf(Pair(10,45), Pair(60,70))
+            listOf(Pair(10, 20), Pair(30, 40), Pair(50, 60)),
+            listOf(Pair(10, 40), Pair(50, 60)),
+            listOf(Pair(10, 50), Pair(60, 70)),
+            listOf(Pair(10, 45), Pair(60, 70))
         ).map { it.map { AvailableTime(it.first, it.second) } }
 
         for (i in t.indices) {
-            assert(checkEqual(
-                mergeAvailableTime(t[i]).map { Pair(it.startMinute, it.endMinute) },
-                a[i].map { Pair(it.startMinute, it.endMinute) }))
+            assert(
+                checkEqual(
+                    mergeAvailableTime(t[i]).map { Pair(it.startMinute, it.endMinute) },
+                    a[i].map { Pair(it.startMinute, it.endMinute) })
+            )
+        }
+    }
+
+    @Test
+    fun getDayOfWeekAvailabilityTest() {
+        val t = "1111100".toInt(2)
+        val map = getDayOfWeekAvailability(t)
+        val s = mapOf(
+            DayOfWeek.MONDAY to true,
+            DayOfWeek.TUESDAY to true,
+            DayOfWeek.WEDNESDAY to true,
+            DayOfWeek.THURSDAY to true,
+            DayOfWeek.FRIDAY to true,
+            DayOfWeek.SATURDAY to false,
+            DayOfWeek.SUNDAY to false
+        )
+
+        for (d in 0..6) {
+            assert(map[DayOfWeek.MONDAY.plus(d.toLong())] == s[DayOfWeek.MONDAY.plus(d.toLong())])
         }
     }
 
