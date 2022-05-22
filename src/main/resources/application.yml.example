@@ -14,16 +14,16 @@ spring:
   thymeleaf:
     cache: false
 
-  # Spring security is optional and only for testing purpose in this app, because we do not directly handle the connection:
+  # Spring security is optional and only for testing purpose in this app, because we should not directly handle the OAuth2 token retrival from Google:
   #     [user] --- (OAuth2) --- [Google].
-  # Instead, we implement a customized Basic Authorization between the scheduling server and us:
-  #     [scheduling server] --- (Basic) --- [this].
-  # The frontend server who handles the user's Google authentication is not our concern.
-  # TODO: Make the server authorization compatible with OAuth2 Client Credentials Grant.
+  # We do store the refresh tokens that are already obtained from Google and use them to make further communications.
+  # The refresh tokens should be obtained from the frontend and communicated with us by Basic Authorization:
+  #     [frontend server] --- (Basic) --- [this].
+  # TODO: Improve the Basic Authorization and make it compatible with OAuth2 Client Credentials Grant.
 
-  # On another note, this server does save Google calendar API refresh token. It will use the refresh token to update the busy timeslots.
+  # Once a refresh token is saved, it will use the refresh token to refresh access tokens, update busy time periods, make bookings, etc.
   #     [this] --- (OAuth2) --- [Google Calendar API]
-  # To test the API communication, Spring security might be invoked. Thus for development purpose, finishing the config below is necessary.
+  # To test the API communications, Spring security might be invoked to obtain this refresh token without a frontend. In this case, fill in the clientId, cliendSecret, and api.provider.google.key below.
 
   security:
     oauth2:
@@ -41,6 +41,8 @@ spring:
           google:
             authorization-uri: https://accounts.google.com/o/oauth2/v2/auth?prompt=consent&access_type=offline
 
+  # Please change the following into your own Postgres setup.
+
   datasource:
     platform: postgres
     url: jdbc:postgresql://localhost:5432/data
@@ -51,7 +53,7 @@ spring:
 logging:
   #file: /logs/application-debug.log
   level:
-    root: INFO
+    com.bookit.dbManager: DEBUG
     #org.springframework.web: DEBUG
     #org.hibernate: DEBUG
   output:
