@@ -1,6 +1,6 @@
 package com.bookit.dbManager.config
 
-import com.bookit.dbManager.api.APIController
+import com.bookit.dbManager.api.SecuredAPIController
 import com.bookit.dbManager.db.ApiAuthRepository
 import com.bookit.dbManager.util.authenticateBASIC
 import com.bookit.dbManager.util.logger
@@ -27,7 +27,7 @@ import javax.servlet.http.HttpServletResponse
 @EnableWebSecurity
 class SecurityConfig {
 
-    val log:Logger = logger<APIController>()
+    val log: Logger = logger<SecuredAPIController>()
 
     @Configuration
     @Order(1)
@@ -45,7 +45,7 @@ class SecurityConfig {
 
     // Shield "/api/backend/**" behind a Basic Authorization check
     class AuthorizationFilter @Autowired constructor (val apiAuthRepository: ApiAuthRepository): GenericFilterBean() {
-        val log = logger<APIController>()
+        val log = logger<SecuredAPIController>()
 
         @Autowired
         @Qualifier("handlerExceptionResolver")
