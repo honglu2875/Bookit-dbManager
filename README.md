@@ -40,36 +40,33 @@ The backend users should not be exposed. Therefore, api endpoints split into two
 For the current version, it uses Basic Authorization header along with a token string generated at the startup of the backend server. For example, when this server runs, it may display a message like the following on console screen (and generate the corresponding item in the "api_token" table in the database).
 ![](img/server_token_example.png)
 
-If another app wants to communicate with us through a secured api endpoint, it must include the encoded token in a Basic Authorization header. In this example, you may send a request as follows.
+If another app wants to communicate with us through a secured api endpoint, it must include the encoded token in a Basic
+Authorization header. In this example, you may send a request as follows.
+
 ```
-curl -X POST http://localhost:8080/api/backend/welcome -H "Authorization: Basic b20zY3d3ZjMxbzEzbjdibQ==" -H "Content-Type: application/json"
+curl -X POST http://localhost:8080/api/backend/welcome -H "Authorization: Basic c3ExNHFhZnR0cHBsdDNhYg==" -H "Content-Type: application/json"
 ```
 
 # Overview of API endpoints
 
-## Public API endpoints
+For a detailed documentation of all endpoints,
+see [https://bookit-dbmanager-docs.herokuapp.com/](https://bookit-dbmanager-docs.herokuapp.com/)
 
-/api/get_timeslot
+# Testing instructions
 
-## Secured API endpoints
+Everything only makes sense after there is at least one backend user with a valid Google API refresh token. Google API
+refresh token needs to be obtained via OAuth2 Authorization Code grant which is usually done by browser authorization.
+Because we do not have a proper user client, a mock authorization endpoint can be opened up by renaming
+the `testEndpoints.kt.examples` into a proper `testEndpoints.kt`. The mock testing scripts are combined in the script
+named `teststream.sh`. So a normal testing procedure would be the following.
 
-/api/backend/add_user
-
-/api/backend/update_refresh_token
-
-/api/backend/add_schedule_type
-
-/api/backend/change_available_time
-
-/api/backend/add_event
-
-*TODO: /api/backend/cancel_event*
-
-*TODO: /api/backend/modify_event*
-
-/api/backend/force_sync
-
-/api/backend/get_history
+1. Rename `src/main/kotlin/com/bookit/dbManager/api/testEndpoints.kt.example` to `testEndpoints.kt`.
+2. Run the backend server. Go to `/authtest` using your browser and complete the Google authorization. After it is
+   successfully done, a valid backend user record would be added to the database, along with the refresh token.
+3. Run `src/test/kotlin/com/bookit/dbManager/liveTests/teststream.sh your-email@gmail.com`. It will run a series of
+   scripts that visit various important endpoints. The details can be easily understood when opening up
+   the `teststream.sh` file.
 
 # Demonstrations
+
 **TODO: upcoming youtube demonstration video**

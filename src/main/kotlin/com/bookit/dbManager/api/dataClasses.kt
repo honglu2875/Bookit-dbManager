@@ -1,5 +1,6 @@
 package com.bookit.dbManager.api
 
+import com.bookit.dbManager.db.AvailableTime
 import kotlinx.serialization.Serializable
 
 // Shadows of database entities used for api inputs
@@ -42,7 +43,9 @@ data class AddScheduleType(
 data class AddAvailableTime(
     val startMinute: Int,
     val endMinute: Int
-)
+) {
+    fun toAvailableTime() = AvailableTime(startMinute, endMinute)
+}
 
 @Serializable
 data class AddBackendUser(

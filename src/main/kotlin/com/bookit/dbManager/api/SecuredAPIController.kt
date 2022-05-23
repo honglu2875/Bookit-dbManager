@@ -81,10 +81,10 @@ class SecuredAPIController @Autowired constructor(
     @PostMapping("/api/backend/{token}/change_available_time", consumes = ["application/json"], produces = [])
     fun change_available_time(
         @Parameter(description = "the token of the schedule type.") @PathVariable token: String,
-        @RequestBody body: List<AvailableTime>
+        @RequestBody body: List<AddAvailableTime>
     ): Any {
         val scheduleType = getScheduleType(token)
-        scheduleTypeRepository.save(scheduleType.updateAvailableTime(body))
+        scheduleTypeRepository.save(scheduleType.updateAvailableTime(body.map { it.toAvailableTime() }))
         return successResponse("Ok.", log = log)
     }
 
@@ -120,6 +120,32 @@ class SecuredAPIController @Autowired constructor(
         backendUserRepository.save(user.updateBusyTime(busyList))
         return successResponse("Ok.", log = log)
     }
+
+    @Operation(summary = "Get backend user details.", description = "")
+    //@ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @GetMapping("/api/backend/get_user", consumes = ["application/json"], produces = ["application/json"])
+    fun get_user(@Parameter(description = "the email of the backend user.") email: String): BackendUser {
+        val user = getUser(email)
+        return user
+    }
+
+    @Operation(summary = "Get schedule type details.", description = "")
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @GetMapping("/api/backend/{token}", consumes = [], produces = ["application/json"])
+    fun get_details(@Parameter(description = "the email of the backend user.") @PathVariable token: String): ScheduleType {
+        val scheduleType = getScheduleType(token)
+        return scheduleType
+    }
+
+    @Operation(summary = "Get schedule type details.", description = "")
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @DeleteMapping("/api/backend/{token}", consumes = [], produces = [])
+    fun delete_schedule_type(@Parameter(description = "the email of the backend user.") @PathVariable token: String): ResponseEntity<String> {
+        val scheduleType = getScheduleType(token)
+        scheduleTypeRepository.delete(scheduleType)
+        return successResponse("Ok.", log = log)
+    }
+
 
     @Operation(summary = "Get the booking history for a backend user.", description = "")
     @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
