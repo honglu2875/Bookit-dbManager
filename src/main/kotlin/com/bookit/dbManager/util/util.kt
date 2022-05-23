@@ -1,6 +1,8 @@
 package com.bookit.dbManager.util
 
 import com.bookit.dbManager.db.AvailableTime
+import com.bookit.dbManager.exceptions.InternalException
+import org.springframework.core.env.Environment
 import java.time.*
 import java.time.format.DateTimeFormatter
 import kotlin.random.Random
@@ -158,4 +160,15 @@ fun getDayOfWeekAvailability(availableDays: Int): Map<DayOfWeek, Boolean> {
  */
 fun validDayOfWeekEncoding(encoded: Int): Boolean {
     return (encoded != 0) && (encoded <= "1111111".toInt(2))
+}
+
+/**
+ * Ensure an Environment object is non-null. Send proper error message when not.
+ *
+ * @param env the Environment object.
+ */
+fun ensureEnvExists(env: Environment?) {
+    val errMsg = "Environment is not injected."
+    if (env == null)
+        throw InternalException(errMsg)
 }

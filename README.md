@@ -46,13 +46,16 @@ curl -X POST http://localhost:8080/api/backend/welcome -H "Authorization: Basic 
 ```
 
 # Overview of API endpoints
+
 ## Public API endpoints
+
 /api/get_timeslot
 
 ## Secured API endpoints
-/api/backend/update_refresh_token
 
 /api/backend/add_user
+
+/api/backend/update_refresh_token
 
 /api/backend/add_schedule_type
 
@@ -60,13 +63,13 @@ curl -X POST http://localhost:8080/api/backend/welcome -H "Authorization: Basic 
 
 /api/backend/add_event
 
-*TODO: /api/backend/cancel_event
+*TODO: /api/backend/cancel_event*
 
-TODO: /api/backend/modify_event*
+*TODO: /api/backend/modify_event*
 
 /api/backend/force_sync
 
-/api/backend/get_booked
+/api/backend/get_history
 
 # Demonstrations
 **TODO: upcoming youtube demonstration video**

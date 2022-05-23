@@ -6,7 +6,7 @@ build/
 !**/src/test/**/build/
 
 ### live testing endpoints ###
-**/src/main/**/api/testEndpoint.kt
+**/src/main/**/api/testEndpoints.kt
 
 ### app configuration ###
 **/src/main/resources/*.yml

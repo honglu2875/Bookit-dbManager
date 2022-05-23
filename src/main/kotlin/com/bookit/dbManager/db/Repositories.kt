@@ -2,8 +2,12 @@ package com.bookit.dbManager.db
 
 import org.springframework.data.repository.CrudRepository
 
-interface BookedSlotRepository : CrudRepository<BookedSlot, Long> {
-    fun findAllByHost(host: BackendUser): List<BookedSlot>
+interface HistoryRepository : CrudRepository<Booking, Long> {
+    fun findAllByHost(host: BackendUser): List<Booking>
+}
+
+interface LockedSlotRepository : CrudRepository<LockedSlot, Long> {
+    fun findAllByHost(host: BackendUser): List<LockedSlot>
 }
 
 interface BackendUserRepository : CrudRepository<BackendUser, String> {

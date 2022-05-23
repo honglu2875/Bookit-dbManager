@@ -1,10 +1,9 @@
 package com.bookit.dbManager.db
 
-import com.bookit.dbManager.api.AddBackendUser
-import com.bookit.dbManager.api.AddBookedSlot
-import com.bookit.dbManager.api.AddScheduleType
+import com.bookit.dbManager.api.*
 import com.bookit.dbManager.util.getToken
 import com.bookit.dbManager.util.mergeAvailableTime
+import com.bookit.dbManager.util.toISO
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import javax.persistence.*
@@ -69,45 +68,94 @@ class BackendUser (
  * @property endTime the end time of the slot (OffsetDateTime; can be represented by, e.g., ISO8601)
  */
 @Embeddable
-class BusyTime (
+class BusyTime(
     @Column(columnDefinition = "timestamp with time zone")
     val startTime: OffsetDateTime,
     @Column(columnDefinition = "timestamp with time zone")
     val endTime: OffsetDateTime
-    )
+)
 
 /**
- * a timeslot that has been booked
+ * a timeslot that is temporarily locked up.
  *
  * @property host the host of the meeting (BackendUser class)
  * @property startTime the start time of the slot (OffsetDateTime; can be represented by, e.g., ISO8601)
  * @property endTime the end time of the slot (OffsetDateTime; can be represented by, e.g., ISO8601)
- * @property attendee (optional) list of attendees
- * @property description (optional) description text
+ * @property createdAt (optional) the timestamp of creation time (automatically generated).
+ * @property expiration (optional, default=10) number of minutes until expiration.
  * @property id (optional) an automatically generated id number
  */
 @Entity
-class BookedSlot (
+class LockedSlot(
     @ManyToOne val host: BackendUser,
-    @Column(columnDefinition = "timestamp with timezone")
+    @Column(columnDefinition = "timestamp with time zone")
     val startTime: OffsetDateTime,
-    @Column(columnDefinition = "timestamp with timezone")
+    @Column(columnDefinition = "timestamp with time zone")
     val endTime: OffsetDateTime,
-    @ElementCollection @CollectionTable(name="attendee")
-    val attendee: List<Attendee> = listOf(),
-    private val description: String? = null,
+    @Column(columnDefinition = "timestamp with time zone")
+    val createdAt: OffsetDateTime = OffsetDateTime.now(),
+    val expiration: Int = 10,
     @Id @GeneratedValue val id: Long? = null
-    ){
-    constructor(addBookedSlot: AddBookedSlot, user: BackendUser): this(
-            host = user,
-            startTime = OffsetDateTime.parse(addBookedSlot.startTime),
-            endTime = OffsetDateTime.parse(addBookedSlot.endTime),
-            attendee = addBookedSlot.attendees.map { Attendee(
+) {
+    constructor(addLockedSlot: AddLockedSlot, user: BackendUser) : this(
+        host = user,
+        startTime = OffsetDateTime.parse(addLockedSlot.startTime),
+        endTime = OffsetDateTime.parse(addLockedSlot.endTime),
+        expiration = addLockedSlot.expiration
+    )
+}
+
+/**
+ * a historical timeslot that was booked through the app. The table serves as the booking history.
+ *
+ * @property host the host of the meeting (BackendUser class)
+ * @property startTime the start time of the slot (OffsetDateTime; can be represented by, e.g., ISO8601)
+ * @property endTime the end time of the slot (OffsetDateTime; can be represented by, e.g., ISO8601)
+ * @property createdAt (optional) the timestamp of creation time (automatically generated).
+ * @property attendees (optional) list of attendees
+ * @property description (optional) description text
+ * @property id (optional) an automatically generated id number
+ */
+@Table(name = "booking_history")
+@Entity
+class Booking(
+    @ManyToOne val host: BackendUser,
+    @Column(columnDefinition = "timestamp with time zone")
+    val startTime: OffsetDateTime,
+    @Column(columnDefinition = "timestamp with time zone")
+    val endTime: OffsetDateTime,
+    @ElementCollection @CollectionTable(name = "attendee")
+    val attendees: List<Attendee> = listOf(),
+    val description: String = "",
+    @Column(columnDefinition = "timestamp with time zone")
+    val createdAt: OffsetDateTime = OffsetDateTime.now(),
+    @Id @GeneratedValue val id: Long? = null
+){
+    constructor(bookTimeSlot: BookTimeSlot, user: BackendUser) : this(
+        host = user,
+        startTime = OffsetDateTime.parse(bookTimeSlot.startTime),
+        endTime = OffsetDateTime.parse(bookTimeSlot.endTime),
+        attendees = bookTimeSlot.attendees.map {
+            Attendee(
                 attendeeEmail = it.email,
                 attendeeName = it.name
-            ) },
-            description = addBookedSlot.description
-        )
+            )
+        },
+        description = bookTimeSlot.description
+    )
+
+    fun toBookTimeSlot() = BookTimeSlot(
+        hostEmail = host.email,
+        startTime = startTime.toISO(),
+        endTime = endTime.toISO(),
+        attendees = attendees.map {
+            AddAttendee(
+                email = it.attendeeEmail,
+                name = it.attendeeName
+            )
+        },
+        description = description
+    )
 
 }
 

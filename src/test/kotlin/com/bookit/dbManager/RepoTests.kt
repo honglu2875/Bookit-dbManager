@@ -12,16 +12,17 @@ import java.util.*
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class RepoTests @Autowired constructor(
-    val bookedSlotRepository: BookedSlotRepository,
+    val historyRepository: HistoryRepository,
     val backenduserRepository: BackendUserRepository,
-    val apiAuthRepository: ApiAuthRepository) {
+    val apiAuthRepository: ApiAuthRepository
+) {
 
     @Test
     fun `database test`() {
         val me = BackendUser("a@a.a", "me", "asdf")
-        val slot1 = BookedSlot(me, OffsetDateTime.now(), OffsetDateTime.now(),listOf())
+        val slot1 = Booking(me, OffsetDateTime.now(), OffsetDateTime.now(), listOf())
 
-        bookedSlotRepository.save(slot1)
+        historyRepository.save(slot1)
         backenduserRepository.save(me)
     }
 

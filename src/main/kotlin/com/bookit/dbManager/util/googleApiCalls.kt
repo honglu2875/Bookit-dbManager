@@ -1,8 +1,6 @@
 package com.bookit.dbManager.util
 
-import com.bookit.dbManager.db.Attendee
-import com.bookit.dbManager.db.BackendUser
-import com.bookit.dbManager.db.BookedSlot
+import com.bookit.dbManager.db.Booking
 import com.bookit.dbManager.db.BusyTime
 import org.json.JSONObject
 import org.slf4j.Logger
@@ -90,8 +88,6 @@ fun refreshAccessToken(
  *
  * Get busy time periods starting from the current time.
  *
- * @param clientId the client id.
- * @param clientSecret the client secret.
  * @param apiKey the api key for Google Calendar API.
  * @param accessToken the access token.
  * @param email the email.
@@ -130,7 +126,7 @@ fun getBusyTime(
 
     val response = httpclient.send(request, HttpResponse.BodyHandlers.ofString())
     val responseObj = JSONObject(response.body())
-    log?.debug("Response:${responseObj.toString()}")
+    log?.debug("Response:$responseObj")
 
     // Parse the response
     val result = arrayListOf<BusyTime>()
@@ -165,12 +161,12 @@ fun addEvent(
     accessToken: String,
     calendarID: String,
     apikey: String,
-    event: BookedSlot,
+    event: Booking,
     log: Logger? = null,
-    withMeetUrl: Boolean=true
+    withMeetUrl: Boolean = true
 ): JSONObject {
 
-
+    if (event.startTime.isBefore(OffsetDateTime.now())) throw Exception("Can't book an earlier date.")
     val conferenceDataJSON = mapOf("createRequest" to mapOf(
         "conferenceSolutionKey" to mapOf("type" to "hangoutsMeet"),
         "requestId" to randomMeetString())
@@ -181,10 +177,12 @@ fun addEvent(
         "start" to mapOf("dateTime" to event.startTime.toISO()),
         "end" to mapOf("dateTime" to event.endTime.toISO()),
         "conferenceData" to if (withMeetUrl) conferenceDataJSON else null,
-        "attendees" to event.attendee.map { mapOf(
-            "email" to it.attendeeEmail,
-            "displayName" to it.attendeeName
-        )}
+        "attendees" to event.attendees.map {
+            mapOf(
+                "email" to it.attendeeEmail,
+                "displayName" to it.attendeeName
+            )
+        }
     )
 
     val uri = "${googleApiEndpoint}/${calendarID}/events?${createEventURIPreamble}&key=${apikey}"

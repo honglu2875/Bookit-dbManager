@@ -1,54 +1,46 @@
 package com.bookit.dbManager.api
 
+import com.bookit.dbManager.api.src.getHistory
 import com.bookit.dbManager.db.*
+import com.bookit.dbManager.exceptions.*
 import com.bookit.dbManager.util.*
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.core.env.Environment
-import org.springframework.http.HttpStatus
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
 import javax.annotation.Resource
-import kotlin.math.min
 
 @SpringBootApplication
 @RestController
 class SecuredAPIController @Autowired constructor(
-    val bookedSlotRepository: BookedSlotRepository,
+    val historyRepository: HistoryRepository,
     val backendUserRepository: BackendUserRepository,
     val scheduleTypeRepository: ScheduleTypeRepository,
-    val apiAuthRepository: ApiAuthRepository
 ) {
     val log = logger<SecuredAPIController>()
 
     @Resource
     private val env: Environment? = null
 
-
-    /**
-     * /api/backend/welcome
-     *
-     * Does nothing but hiding behind an authorization filter. Return a welcome string if authorized.
-     */
-    @PostMapping("/api/backend/welcome")
+    @Operation(summary = "Send a welcome message if authorization is passed.")
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @PostMapping("/api/backend/welcome", consumes = [], produces = [])
     fun welcome(): Any {
-        return successGenerator("Welcome. Your authorization token is correct.")
+        return successResponse("Welcome. The authorization token is correct.")
     }
 
-    /**
-     * /api/backend/update_refresh_token
-     *
-     * Update the refresh token of a backend user. It reads a JSON payload.
-     * Must have: email, refresh_token
-     * @param body A JSON string.
-     */
-    @PostMapping("/api/backend/update_refresh_token")
+    @Operation(summary = "Update the refresh token.", description = "")
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @PostMapping("/api/backend/update_refresh_token", consumes = ["application/json"], produces = [])
     fun update_refresh_token(
         @RequestBody body: UpdateRefreshToken
-    ): Any {
+    ): ResponseEntity<String> {
         ensureEnvExists(env)
 
         val clientId = env!!.getProperty("spring.security.oauth2.client.registration.google.clientId")
@@ -60,106 +52,57 @@ class SecuredAPIController @Autowired constructor(
             val updatedUser = user.updateRefreshToken(body.refreshToken)
             backendUserRepository.save(updatedUser)
         } else
-            return errorGenerator("Invalid refresh token.", HttpStatus.BAD_REQUEST, log = log)
+            throw InvalidRefreshTokenException()
 
-        return successGenerator("Ok.", log = log)
+        return successResponse("Ok.", log = log)
     }
 
-    /**
-     * /api/backend/add_user
-     *
-     * Add a backend user. It reads a JSON payload. See the docs for the object BackendUser.
-     * The data should not contain: createdAt, busyPeriods.
-     * Must have: email, refreshToken.
-     * @param body A JSON string.
-     */
-    @PostMapping("/api/backend/add_user")
+    @Operation(summary = "Add a backend user.", description = "")
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @PostMapping("/api/backend/add_user", consumes = ["application/json"], produces = [])
     fun add_user(@RequestBody body: AddBackendUser): Any {
         ensureUserNonexist(body.email)
         backendUserRepository.save(BackendUser(body))
-        return successGenerator("Ok.", log = log)
+        return successResponse("Ok.", log = log)
     }
 
-    /**
-     * /api/backend/add_schedule_type
-     *
-     * Add a new schedule type for a backend user.
-     * The body is a JSON string containing fields: email, duration, description, availableDays (for encoding rule, see docs on class ScheduleType).
-     *
-     * @param body A JSON string.
-     */
-    @PostMapping("/api/backend/add_schedule_type")
+    @Operation(summary = "Add a schedule type.", description = "")
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @PostMapping("/api/backend/add_schedule_type", consumes = ["application/json"], produces = [])
     fun add_schedule_type(@RequestBody body: AddScheduleType): Any {
         val user: BackendUser = getUser(body.email)
-        if (validDayOfWeekEncoding(body.availableDays)) return errorGenerator(
-            "Invalid days encoding.",
-            HttpStatus.BAD_REQUEST,
-            log = log
-        )
+        if (!validDayOfWeekEncoding(body.availableDays)) throw InvalidValueException()
         scheduleTypeRepository.save(ScheduleType(body, user))
-        return successGenerator("Ok.", log = log)
+        return successResponse("Ok.", log = log)
     }
 
-    /**
-     * /api/backend/change_available_time
-     *
-     * Update the available time periods for a given ScheduleType.
-     * The body is a JSON array describing available time periods which completely replace the original one in the specified ScheduleType.
-     *
-     * @param token the token identifying the ScheduleType
-     * @param body A JSON array.
-     */
-    @PostMapping("/api/backend/change_available_time")
-    fun change_available_time(token: String, @RequestBody body: List<AvailableTime>): Any {
+    @Operation(summary = "Change the available time of a schedule type.", description = "")
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @PostMapping("/api/backend/{token}/change_available_time", consumes = ["application/json"], produces = [])
+    fun change_available_time(
+        @Parameter(description = "the token of the schedule type.") @PathVariable token: String,
+        @RequestBody body: List<AvailableTime>
+    ): Any {
         val scheduleType = getScheduleType(token)
         scheduleTypeRepository.save(scheduleType.updateAvailableTime(body))
-        return successGenerator("Ok.", log = log)
+        return successResponse("Ok.", log = log)
     }
 
     /**
-     * /api/backend/add_event
-     *
-     * Add a new event to a backend user's default calendar (calendarId=email). The body is a JSON string containing:
-     * hostEmail, startTime, endTime, attendees (another JSON array whose content is a JSON object with email and name fields), description
-     * If the response from Google contains "status" key and the value is "confirmed", a record of the event will be persisted in the database.
-     * @param body a JSON string.
-     * @return the original JSON string response from Google Calendar API.
-     */
-    @PostMapping("/api/backend/add_event")
-    fun add_event(@RequestBody body: AddBookedSlot): Any {
-        val user: BackendUser = getUser(body.hostEmail)
-        ensureEnvExists(env)
-
-        val clientId = env!!.getProperty("spring.security.oauth2.client.registration.google.clientId")!!
-        val clientSecret = env.getProperty("spring.security.oauth2.client.registration.google.clientSecret")!!
-        val apiKey = env.getProperty("api.provider.google.key")!!
-        val accessToken =
-            refreshAccessToken(clientId, clientSecret, user.refreshToken, log = log).getString("access_token")
-        val bookedSlot = BookedSlot(body, user)
-
-        val response = addEvent(accessToken, user.email, apiKey, bookedSlot)
-        if (response.has("status") && response.getString("status") == "confirmed")
-            bookedSlotRepository.save(bookedSlot)
-        return response.toString()
-
-    }
-
-    /**
-     * TODO: /api/backend/cancel_event
+     * TODO: design /api/backend/cancel_event
      */
 
     /**
-     * TODO: /api/backend/modify_event
+     * TODO: design /api/backend/modify_event
      */
 
-    /**
-     * /api/backend/force_sync
-     *
-     * Force an update with Google Calendar's busy time periods for a given backend user.
-     * @param email the backend user's email
-     */
-    @PostMapping("/api/backend/force_sync")
-    fun force_sync(email: String): Any {
+    @Operation(
+        summary = "Force a sync with Google calendar.",
+        description = "Sync the database record of the busy time of the given backend user with their Google calendar"
+    )
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @PostMapping("/api/backend/force_sync", consumes = ["application/json"], produces = [])
+    fun force_sync(@Parameter(description = "the email of the backend user.") email: String): Any {
         ensureEnvExists(env)
 
         val clientId = env!!.getProperty("spring.security.oauth2.client.registration.google.clientId")
@@ -175,59 +118,36 @@ class SecuredAPIController @Autowired constructor(
             log = log
         )
         backendUserRepository.save(user.updateBusyTime(busyList))
-        return successGenerator("Ok.", log = log)
+        return successResponse("Ok.", log = log)
     }
 
-    /**
-     * /api/backend/get_booked
-     *
-     * Return a list of booked time (booked through this server).
-     *
-     * @param email the calendar owner's email address.
-     * @param limit (optional, default=100) the maximum amount of timeslots to return (max=100).
-     * @param startDate (optional, default:today) the starting date (with format YYYY-mm-dd).
-     * @return a JSON array of BookedSlot objects.
-     */
-    @GetMapping("/api/backend/get_booked")
-    fun get_booked(email: String, limit: Int? = 100, startDate: String?): Any {
-        val start = if (startDate == null) LocalDate.now() else LocalDate.parse(startDate)
-        val user = getUser(email)
-        val bookedSlots: List<BookedSlot> = bookedSlotRepository.findAllByHost(user).sortedBy { it.startTime }
+    @Operation(summary = "Get the booking history for a backend user.", description = "")
+    @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
 
-        if (bookedSlots.isEmpty()) return listOf<Nothing>()
-        var startIndex = -1
-        for (i in bookedSlots.indices) {
-            if (bookedSlots[i].startTime.toLocalDate() >= start) {
-                startIndex = i
-                break
-            }
-        }
-        return bookedSlots.slice(startIndex until min(startIndex + limit!!, bookedSlots.size))
+    @GetMapping("/api/backend/get_history", consumes = ["application/json"], produces = ["application/json"])
+    fun get_history(@RequestBody body: GetHistoryRequest): List<BookTimeSlot> {
+        val pageLimit = if (body.limit <= 100) body.limit else 100
+        val start = if (body.startDate == null) LocalDate.now() else LocalDate.parse(body.startDate)
+        val user = getUser(body.email)
+        val bookingHistories: List<Booking> = historyRepository.findAllByHost(user)
+
+        return getHistory(pageLimit, start, bookingHistories)
     }
 
 
     fun getScheduleType(scheduleTypeToken: String): ScheduleType {
-        val errMsg = "ScheduleType not found."
         return scheduleTypeRepository.findByToken(scheduleTypeToken)
-            ?: throw Exception(errMsg)
+            ?: throw ScheduleTypeNotFoundException()
     }
 
     fun getUser(email: String): BackendUser {
-        val errMsg = "User not found."
         return backendUserRepository.findByEmail(email)
-            ?: throw Exception(errMsg)
+            ?: throw UserNotFoundException()
     }
 
     fun ensureUserNonexist(email: String) {
-        val errMsg = "User already exists."
         if (backendUserRepository.findByEmail(email) != null)
-            throw Exception(errMsg)
-    }
-
-    fun ensureEnvExists(env: Environment?) {
-        val errMsg = "Environment is not injected."
-        if (env == null)
-            throw Exception(errMsg)
+            throw UserAlreadyExistException()
     }
 
 }

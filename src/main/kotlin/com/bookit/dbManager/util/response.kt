@@ -1,28 +1,19 @@
 package com.bookit.dbManager.util
 
+import kotlinx.serialization.Serializable
 import org.slf4j.Logger
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 
-fun errorGenerator(
-    errMsg: String,
-    status: HttpStatus,
-    statusMsg: String = "unsuccessful",
-    log: Logger?=null
-): ResponseEntity<Map<String, String>> {
-    val body = mapOf("status" to statusMsg, "message" to errMsg)
+@Serializable
+data class DefaultSuccessMsg(val status: String = "success")
 
-    log?.error(errMsg)
-    return ResponseEntity(body, status)
+fun <T> successResponse(content: T, log: Logger? = null): ResponseEntity<T> {
+    log?.debug(content.toString())
+    return ResponseEntity.ok(content)
 }
 
-fun successGenerator(
-    successMsg: String,
-    statusMsg: String = "success",
-    log: Logger?=null
-    ): ResponseEntity<Map<String, String>> {
-    val body = mapOf("status" to statusMsg, "message" to successMsg)
-
-    log?.debug(successMsg)
-    return ResponseEntity.ok(body)
+fun successResponseDefault(log: Logger? = null): ResponseEntity<DefaultSuccessMsg> {
+    val content = DefaultSuccessMsg()
+    log?.debug(content.toString())
+    return ResponseEntity.ok(content)
 }

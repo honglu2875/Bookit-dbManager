@@ -5,12 +5,20 @@ import kotlinx.serialization.Serializable
 // Shadows of database entities used for api inputs
 
 @Serializable
-data class AddBookedSlot(
+data class BookTimeSlot(
     val hostEmail: String,
     val startTime: String,
     val endTime: String,
     val attendees: List<AddAttendee>,
     val description: String = ""
+)
+
+@Serializable
+data class AddLockedSlot(
+    val hostEmail: String,
+    val startTime: String,
+    val endTime: String,
+    val expiration: Int = 10
 )
 
 @Serializable
@@ -47,4 +55,11 @@ data class AddBackendUser(
 data class UpdateRefreshToken(
     val email: String,
     val refreshToken: String
+)
+
+@Serializable
+data class GetHistoryRequest(
+    val email: String,
+    val limit: Int = 100,
+    val startDate: String? = null
 )
