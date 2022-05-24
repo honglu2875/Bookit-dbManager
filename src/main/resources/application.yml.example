@@ -2,6 +2,9 @@ server:
   port: 8080
 
 spring:
+  data:
+      rest:
+        base-path: api/backend/db # Make sure to move CRUD REST endpoints behind the secured wall.
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -46,16 +49,14 @@ spring:
   datasource:
     platform: postgres
     url: jdbc:postgresql://localhost:5432/data
-    username: foo
-    password: bar
+    username: postgres
+    password: password
     driverClassName: org.postgresql.Driver
 
 logging:
   #file: /logs/application-debug.log
   level:
     com.bookit.dbManager: DEBUG
-    #org.springframework.web: DEBUG
-    #org.hibernate: DEBUG
   output:
     ansi:
       enabled: DETECT

@@ -137,7 +137,7 @@ class SecuredAPIController @Autowired constructor(
         return scheduleType
     }
 
-    @Operation(summary = "Get schedule type details.", description = "")
+    @Operation(summary = "Delete schedule type.", description = "")
     @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
     @DeleteMapping("/api/backend/{token}", consumes = [], produces = [])
     fun delete_schedule_type(@Parameter(description = "the email of the backend user.") @PathVariable token: String): ResponseEntity<String> {
