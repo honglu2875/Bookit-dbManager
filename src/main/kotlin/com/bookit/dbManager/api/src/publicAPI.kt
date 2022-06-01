@@ -6,6 +6,7 @@ import com.bookit.dbManager.db.ScheduleType
 import com.bookit.dbManager.util.*
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.ZoneId
 
 /**
  * Handles /api/get_timeslot API calls.
@@ -18,7 +19,7 @@ fun getTimeslot(
     scheduleType: ScheduleType,
     lockedSlots: List<LockedSlot>
 ): List<Pair<OffsetDateTime, OffsetDateTime>> {
-    val zone = scheduleType.zoneId
+    val zone = ZoneId.of(scheduleType.zoneId)
     val duration = scheduleType.duration
     val timeBetweenSlots = scheduleType.timeBetweenSlots
     assert(validDayOfWeekEncoding(scheduleType.availableDays))

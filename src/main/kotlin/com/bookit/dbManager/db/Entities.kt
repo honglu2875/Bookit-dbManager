@@ -177,7 +177,7 @@ class Attendee (
  * @property host the host of the meetings (BackendUser).
  * @property duration (optional, default=60) duration of each booking slot (in minutes).
  * @property description (optional) description text.
- * @property zoneId (optional, default:UTC) the timezone.
+ * @property zoneId (optional, default:"Z") the timezone.
  * @property availableList (optional, default: 8am-5pm) a list of AvailableTime object describing available time of the day (in the host's timezone). Time is represented by number of minutes after 12am.
  * @property timeBetweenSlots (optional, default=0) number of minutes between two booking slots.
  * @property availableDays (optional, default=0x7C) an integer encoding M/T/W/Th/F/Sa/Su availability in terms of binary bits. 1 for available and 0 for unavailable. E.g., 1111100 -> Mon-Fri available.
@@ -189,28 +189,30 @@ class ScheduleType constructor(
     @ManyToOne val host: BackendUser,
     val duration: Int = 60,
     val description: String = "",
-    val zoneId: ZoneId = ZoneId.of("Z"),
-    @ElementCollection @CollectionTable(name="available_time")
+    val zoneId: String = "Z",
+    @ElementCollection @CollectionTable(name = "available_time")
     val availableList: List<AvailableTime> = listOf(AvailableTime(480, 1020)), // default availability: 8am-5pm
     val timeBetweenSlots: Int = 0,
     val availableDays: Int = "1111100".toInt(2), // encode MTWThFSaSu availability as a binary int
     @Id @GeneratedValue
     val id: Long? = null,
-    @Column(unique=true)
+    @Column(unique = true)
     var token: String = getToken(System.currentTimeMillis())
 ){
 
 
-    constructor(addScheduleType: AddScheduleType, user: BackendUser): this(
-            host=user,
-            duration=addScheduleType.duration,
-            description=addScheduleType.description,
-            zoneId=ZoneId.of(addScheduleType.zoneId),
-            availableList= mergeAvailableTime(
-                addScheduleType.availableList.map { AvailableTime(it.startMinute, it.endMinute) }),
-            availableDays=addScheduleType.availableDays,
-            timeBetweenSlots=addScheduleType.timeBetweenSlots
-        )
+    constructor(addScheduleType: AddScheduleType, user: BackendUser) : this(
+        host = user,
+        duration = addScheduleType.duration,
+        description = addScheduleType.description,
+        zoneId = addScheduleType.zoneId,
+        availableList = mergeAvailableTime(
+            addScheduleType.availableList.map { AvailableTime(it.startMinute, it.endMinute) }),
+        availableDays = addScheduleType.availableDays,
+        timeBetweenSlots = addScheduleType.timeBetweenSlots
+    ) {
+        ZoneId.of(addScheduleType.zoneId) // make sure the format of ZoneID is correct.
+    }
 
 
     fun updateAvailableTime(availableList: List<AvailableTime>) = ScheduleType(
