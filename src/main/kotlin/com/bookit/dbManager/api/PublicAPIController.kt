@@ -13,10 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseEntity
 import org.springframework.ui.Model
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import javax.annotation.Resource
@@ -50,6 +47,7 @@ class PublicAPIController @Autowired constructor(
      """
     )
     @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
+    @CrossOrigin(origins = ["*"])
     @GetMapping("/api/get_timeslot", consumes = [], produces = ["application/json"])
     fun get_timeslot(
         email: String,
@@ -57,7 +55,7 @@ class PublicAPIController @Autowired constructor(
         limit: Int?,
         maxDays: Int?,
         startDate: String?
-    ): ResponseEntity<List<Pair<OffsetDateTime, OffsetDateTime>>> {
+    ): ResponseEntity<Map<String, List<Pair<OffsetDateTime, OffsetDateTime>>>> {
         val user = getUser(email)
         val scheduleType = getScheduleType(token)
         val lockedSlots: List<LockedSlot> = lockedSlotRepository.findAllByHost(user)
@@ -66,7 +64,7 @@ class PublicAPIController @Autowired constructor(
         val dayLimit = maxDays ?: 90
 
         return successResponse(
-            getTimeslot(pageLimit, dayLimit, startLocalDate, user, scheduleType, lockedSlots),
+            mapOf("data" to getTimeslot(pageLimit, dayLimit, startLocalDate, user, scheduleType, lockedSlots)),
             log = log
         )
     }
