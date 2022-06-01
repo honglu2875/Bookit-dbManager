@@ -12,6 +12,7 @@ import java.time.OffsetDateTime
  */
 fun getTimeslot(
     pageLimit: Int,
+    dayLimit: Int,
     startLocalDate: LocalDate,
     user: BackendUser,
     scheduleType: ScheduleType,
@@ -92,7 +93,7 @@ fun getTimeslot(
 
     // The core code of the timeslot generation begins here.
 
-    while (currentStart < startDateTime.plusMonths(3)) {
+    while (currentStart < startDateTime.plusDays(dayLimit.toLong())) {
         busyPeriodPointer = getNextInterval(busyPeriods, busyPeriodPointer, currentStart, currentEnd)
         bookedPeriodPointer = getNextInterval(lockedPeriod, bookedPeriodPointer, currentStart, currentEnd)
         // Check the intersection with busy and booked periods

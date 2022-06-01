@@ -55,6 +55,7 @@ class PublicAPIController @Autowired constructor(
         email: String,
         token: String,
         limit: Int?,
+        maxDays: Int?,
         startDate: String?
     ): ResponseEntity<List<Pair<OffsetDateTime, OffsetDateTime>>> {
         val user = getUser(email)
@@ -62,8 +63,12 @@ class PublicAPIController @Autowired constructor(
         val lockedSlots: List<LockedSlot> = lockedSlotRepository.findAllByHost(user)
         val startLocalDate = if (startDate == null) LocalDate.now() else LocalDate.parse(startDate)
         val pageLimit = limit ?: 100
+        val dayLimit = maxDays ?: 90
 
-        return successResponse(getTimeslot(pageLimit, startLocalDate, user, scheduleType, lockedSlots), log = log)
+        return successResponse(
+            getTimeslot(pageLimit, dayLimit, startLocalDate, user, scheduleType, lockedSlots),
+            log = log
+        )
     }
 
     @Operation(
