@@ -182,7 +182,9 @@ fun addEvent(
                 "email" to it.attendeeEmail,
                 "displayName" to it.attendeeName
             )
-        }
+        },
+        "description" to event.description,
+        "summary" to event.summary
     )
 
     val uri = "${googleApiEndpoint}/${calendarID}/events?${createEventURIPreamble}&key=${apikey}"

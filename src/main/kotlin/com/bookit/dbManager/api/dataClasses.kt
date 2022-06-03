@@ -11,6 +11,7 @@ data class BookTimeSlot(
     val startTime: String,
     val endTime: String,
     val attendees: List<AddAttendee>,
+    val summary: String = "",
     val description: String = ""
 )
 

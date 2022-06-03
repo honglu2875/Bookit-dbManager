@@ -126,6 +126,7 @@ class Booking(
     val endTime: OffsetDateTime,
     @ElementCollection @CollectionTable(name = "attendee")
     val attendees: List<Attendee> = listOf(),
+    val summary: String = "",
     val description: String = "",
     @Column(columnDefinition = "timestamp with time zone")
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
@@ -141,6 +142,7 @@ class Booking(
                 attendeeName = it.name
             )
         },
+        summary = bookTimeSlot.summary,
         description = bookTimeSlot.description
     )
 
@@ -154,6 +156,7 @@ class Booking(
                 name = it.attendeeName
             )
         },
+        summary = summary,
         description = description
     )
 
