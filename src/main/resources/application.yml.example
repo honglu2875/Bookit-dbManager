@@ -7,8 +7,7 @@ spring:
         base-path: api/backend/db # Make sure to move CRUD REST endpoints behind the secured wall.
   jpa:
     hibernate:
-      ddl-auto: create-drop
-    show-sql: true
+      ddl-auto: update
     properties:
       hibernate:
         dialect:
@@ -49,12 +48,12 @@ spring:
   datasource:
     platform: postgres
     url: jdbc:postgresql://localhost:5432/data
-    username: postgres
-    password: password
+    username: <Postgres username>
+    password: <Postgres password>
     driverClassName: org.postgresql.Driver
 
 logging:
-  #file: /logs/application-debug.log
+  file: /logs/application-debug.log
   level:
     com.bookit.dbManager: DEBUG
   output:

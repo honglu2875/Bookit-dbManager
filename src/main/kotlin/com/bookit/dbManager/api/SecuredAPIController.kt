@@ -101,7 +101,7 @@ class SecuredAPIController @Autowired constructor(
         description = "Sync the database record of the busy time of the given backend user with their Google calendar"
     )
     @ApiResponses(ApiResponse(responseCode = "200", description = "successful operation"))
-    @PostMapping("/api/backend/force_sync", consumes = ["application/json"], produces = [])
+    @PostMapping("/api/backend/force_sync", consumes = [], produces = [])
     fun force_sync(@Parameter(description = "the email of the backend user.") email: String): Any {
         ensureEnvExists(env)
 
