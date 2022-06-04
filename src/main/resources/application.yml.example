@@ -47,7 +47,7 @@ spring:
 
   datasource:
     platform: postgres
-    url: jdbc:postgresql://localhost:5432/data
+    url: jdbc:postgresql://<Postgres addr>:5432/data
     username: <Postgres username>
     password: <Postgres password>
     driverClassName: org.postgresql.Driver
